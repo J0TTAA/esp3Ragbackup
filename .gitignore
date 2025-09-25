@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+data/processed/
+data/index.faiss
+*.parquet
+*.npy
+.env
+.vscode/
+*.pyc
+.env.example

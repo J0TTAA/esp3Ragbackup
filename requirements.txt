@@ -1,0 +1,13 @@
+pandas
+numpy
+faiss-cpu
+sentence-transformers
+pypdf
+tqdm
+openai
+python-dotenv
+beautifulsoup4
+pyarrow
+scikit-learn
+click
+rich
