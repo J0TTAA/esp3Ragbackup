@@ -1,32 +1,40 @@
+# retrieve.py
 import os
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
-import argparse
 
-# Load environment variables
+# Cargar variables de entorno (.env)
 load_dotenv()
 
+
 class QdrantRetriever:
+    """
+    Cliente para recuperar chunks desde Qdrant usando embeddings.
+    El modelo de embeddings se carga solo una vez.
+    """
+
     def __init__(self, collection_name="ufro_normativa"):
-        """Initializes the Qdrant client and the embedding model."""
+        # Conectar a Qdrant
         self.qdrant_client = QdrantClient(
             url=os.environ.get("QDRANT_HOST"),
             api_key=os.environ.get("QDRANT_API_KEY")
         )
+
+        # ⚡ Cargar el modelo de embeddings una sola vez
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
         self.collection_name = collection_name
-        print("Retriever initialized. Connected to Qdrant.")
+        print(f"[Retriever] Conectado a Qdrant en colección '{self.collection_name}'")
 
     def retrieve(self, query: str, k: int = 4):
         """
-        Performs a semantic search on Qdrant and retrieves the most relevant chunks.
-        Returns a list of dictionaries with text and metadata.
+        Realiza búsqueda semántica en Qdrant y devuelve los chunks relevantes.
         """
-        # 1. Convert the query into a vector (embedding)
+        # 1. Convertir la query a vector
         query_vector = self.embedding_model.encode(query).tolist()
 
-        # 2. Perform the search in the Qdrant collection
+        # 2. Buscar en la colección de Qdrant
         search_result = self.qdrant_client.search(
             collection_name=self.collection_name,
             query_vector=query_vector,
@@ -34,45 +42,37 @@ class QdrantRetriever:
             with_payload=True
         )
 
-        # 3. Format the results for use by the LLM
-        retrieved_chunks = []
-        for result in search_result:
-            chunk_data = {
-                "text": result.payload.get("text"),
-                "score": result.score,
-                "doc_id": result.payload.get("doc_id"),
-                "title": result.payload.get("title"),
-                "page": result.payload.get("page"),
-                "url": result.payload.get("url"),
-                "vigencia": result.payload.get("vigencia"),
+        # 3. Formatear resultados
+        retrieved_chunks = [
+            {
+                "text": r.payload.get("text"),
+                "score": r.score,
+                "doc_id": r.payload.get("doc_id"),
+                "title": r.payload.get("title"),
+                "page": r.payload.get("page"),
+                "url": r.payload.get("url"),
+                "vigencia": r.payload.get("vigencia"),
             }
-            retrieved_chunks.append(chunk_data)
-        
+            for r in search_result
+        ]
+
         return retrieved_chunks
 
-def main():
-    parser = argparse.ArgumentParser(description="Test chunk retrieval from Qdrant.")
-    parser.add_argument("query", type=str, help="The query to search for in the database.")
-    parser.add_argument("-k", type=int, default=4, help="Number of chunks to retrieve.")
-    args = parser.parse_args()
-    
-    retriever = QdrantRetriever()
-    chunks = retriever.retrieve(args.query, args.k)
-    
-    if not chunks:
-        print("No results found.")
-        return
-        
-    print("\n--- Search Results ---")
-    for i, chunk in enumerate(chunks, 1):
-        print(f"\n[{i}] Document: {chunk['title']} (Page {chunk['page']})")
-        print(f"URL: {chunk['url']}")
-        print(f"Similarity Score: {chunk['score']:.4f}")
-        # Print a snippet of the text
-        if chunk['text']:
-            print("Text Snippet:\n" + " ".join(chunk['text'].split()[:50]) + "...\n")
-        else:
-            print("Text: [Not available in payload]\n")
+
+# ✅ Crear una sola instancia global del retriever
+retriever = QdrantRetriever()
+
 
 if __name__ == "__main__":
-    main()
+    # Test rápido en terminal
+    query = "¿Qué es el Periodo de Inactividad Académica (PIA)?"
+    chunks = retriever.retrieve(query, k=3)
+
+    if not chunks:
+        print("No se encontraron resultados.")
+    else:
+        print("\n--- Resultados ---")
+        for i, chunk in enumerate(chunks, 1):
+            print(f"[{i}] {chunk['title']} (pág. {chunk['page']})")
+            print(f"   Score: {chunk['score']:.4f}")
+            print(f"   Texto: {chunk['text'][:120]}...\n")

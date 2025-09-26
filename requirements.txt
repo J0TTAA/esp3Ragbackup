@@ -11,3 +11,4 @@ pyarrow
 scikit-learn
 click
 rich
+ragas
