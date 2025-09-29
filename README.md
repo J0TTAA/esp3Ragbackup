@@ -1,10 +1,27 @@
 ````markdown
+# Sistema RAG de Consulta Normativa UFRO
+
+Este proyecto implementa un Pipeline de **Generación Aumentada por Recuperación (RAG)** para ofrecer respuestas precisas y referenciadas, basadas en la normativa oficial de la Universidad de La Frontera (UFRO).  
+Utiliza dos Modelos de Lenguaje Grande (**DeepSeek** y **ChatGPT/OpenRouter**) y **Qdrant** como base de datos vectorial.
+
+---
+
+## 1. Arquitectura y Componentes (S1)
+
+El sistema RAG se compone de tres módulos clave:
+
+- **Ingesta/Embedding**: Utiliza un modelo de embedding de OpenAI para convertir los documentos PDF en vectores, almacenados en Qdrant.  
+- **Retriever (Qdrant)**: El motor de búsqueda vectorial que recupera los fragmentos de contexto más relevantes.  
+- **Generador (LLM)**: Selecciona el modelo (DeepSeek o ChatGPT/OpenRouter) para generar la respuesta final basándose en el contexto recuperado.  
+
+---
+
 ## 2. Instalación y Configuración del Entorno
 
 ### 2.1 Prerrequisitos
-- Python 3.9+
-- Servidor Qdrant (por defecto en [http://localhost:6333](http://localhost:6333))
-- Documentos PDF en la carpeta `data/`
+- Python 3.9+  
+- Servidor Qdrant (por defecto en `http://localhost:6333`)  
+- Documentos PDF en la carpeta `data/`  
 
 ### 2.2 Configuración de Claves API (`.env`)
 
@@ -20,10 +37,6 @@ OPENROUTER_API_KEY="tu_clave_de_openrouter_para_gpt"
 QDRANT_URL="http://localhost:6333"
 QDRANT_COLLECTION="ufro_normativa"
 ````
-
-```
-```
-
 
 ### 2.3 Instalación de Dependencias
 
