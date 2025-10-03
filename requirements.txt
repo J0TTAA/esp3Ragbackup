@@ -13,3 +13,4 @@ click
 rich
 ragas
 Flask
+qdrant-client
