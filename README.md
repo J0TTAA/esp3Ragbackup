@@ -117,4 +117,3 @@ Abre tu navegador y accede a la aplicación en:
 bash
 Copiar código
 
-¿Quieres que lo deje en el mismo estilo que las secciones anteriores de tu README (con numeración, blo
