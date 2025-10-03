@@ -1,0 +1,56 @@
+
+
+services:
+  # ---------------------------------
+  # SERVICIO 1: Base de Datos Vectorial (Qdrant)
+  # ---------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant_ufro
+    # Los datos persisten en un volumen para que no se pierdan al reiniciar el contenedor
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    ports:
+      # Exponemos el puerto gRPC y el puerto HTTP de Qdrant
+      - "6333:6333"
+      - "6334:6334"
+    restart: always
+
+  # ---------------------------------
+  # SERVICIO 2: Aplicación RAG (Flask)
+  # ---------------------------------
+  rag_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ufro_rag_app
+    # Mapea el puerto 5000 del contenedor al puerto 5000 del host
+    ports:
+      - "5000:5000"
+    # Asegura que Qdrant esté disponible antes de iniciar el RAG
+    depends_on:
+      - qdrant
+    # Carga las variables de entorno para que Flask y los providers tengan las claves API
+    env_file:
+      - .env
+    # Variables de entorno específicas para la conexión a Qdrant
+    environment:
+      # Sobreescribe la URL de Qdrant para usar el nombre del servicio en Docker
+      # Tu QdrantRetriever debería leer esta variable.
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333 # Puerto gRPC
+
+    restart: unless-stopped
+    # Comando para ejecutar con Gunicorn para mayor estabilidad, usando 4 workers
+    # Nota: Si tu app.py usa 'if __name__ == "__main__":', Gunicorn lo ignorará,
+    # por lo que debes cambiar 'CMD ["python", "app.py"]' en el Dockerfile
+    # por 'CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]' y
+    # eliminar la línea 'app.run(debug=True)' de tu app.py.
+    # Pero para este ejemplo, mantendremos el comando simple de Python.
+
+# ---------------------------------
+# VOLÚMENES
+# ---------------------------------
+volumes:
+  qdrant_storage:
+    driver: local

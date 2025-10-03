@@ -12,3 +12,4 @@ scikit-learn
 click
 rich
 ragas
+Flask

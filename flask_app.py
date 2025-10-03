@@ -1,10 +1,10 @@
 import os
 import time
 from dotenv import load_dotenv
-import argparse
 from typing import List, Tuple, Dict, Any
+from flask import Flask, render_template, request, jsonify
 
-# Importar los componentes que creaste
+# Importar los componentes que creaste (Asegúrate que las rutas sean correctas)
 from rag.retrieve import QdrantRetriever
 from providers.deepseek import DeepSeekProvider
 from providers.openrouter import OpenRouterProvider
@@ -13,7 +13,7 @@ from providers.openrouter import OpenRouterProvider
 load_dotenv()
 
 # -------------------------------
-# Inicialización global (1 sola vez)
+# Inicialización global (DUPLICADA para independencia)
 # -------------------------------
 retriever = QdrantRetriever()
 deepseek_provider = DeepSeekProvider()
@@ -22,24 +22,16 @@ openrouter_provider = OpenRouterProvider()
 # Definimos el tipo para los metadatos de citación
 CitationMetadata = Dict[str, Any]
 
+# Inicialización de Flask
+app = Flask(__name__)
 
-# MODIFICACIÓN CLAVE: AGREGAR 'k: int = 4' a la firma de la función.
+# -------------------------------
+# Pipeline RAG (DUPLICADO)
+# -------------------------------
 def rag_pipeline(query: str, provider: str = "openrouter", k: int = 4) -> Tuple[str, List[str], List[CitationMetadata], int]:
     """
     Ejecuta el pipeline RAG completo para una consulta de usuario.
-
-    Args:
-        query: La pregunta del usuario.
-        provider: El nombre del proveedor LLM a usar ("deepseek" u "openrouter").
-        k: Número de fragmentos a recuperar.
-
-    Returns:
-        tuple: (
-            generated_answer: str,
-            retrieved_texts: list[str],
-            citation_metadata: list[dict],
-            tokens_used: int
-        )
+    (Copia EXACTA de la función rag_pipeline de tu app.py)
     """
     # Seleccionar el proveedor ya inicializado
     if provider == "deepseek":
@@ -48,14 +40,14 @@ def rag_pipeline(query: str, provider: str = "openrouter", k: int = 4) -> Tuple[
         llm = openrouter_provider
 
     # Paso de Recuperación (Retrieval)
-    chunks = retriever.retrieve(query, k=k)  # Se pasa 'k' al retriever
+    chunks = retriever.retrieve(query, k=k)
 
     if not chunks:
         # DEVOLVEMOS LISTA VACÍA DE CITACIONES EN CASO DE NO ENCONTRAR NADA
         return (
             "No pude encontrar información relevante en la base de datos para responder a tu pregunta.",
             [],
-            [],  # CITACIONES VACÍAS
+            [],
             0,
         )
 
@@ -90,69 +82,71 @@ def rag_pipeline(query: str, provider: str = "openrouter", k: int = 4) -> Tuple[
     # Paso de Generación (Generation)
     response = llm.chat(messages=[{"role": "user", "content": augmented_prompt}])
 
-    # Estimación de tokens (puedes reemplazarlo con tiktoken si usas OpenAI-compatible)
+    # Estimación de tokens
     tokens_used = len(augmented_prompt.split()) + len(response.split())
 
     # DEVOLVEMOS LOS METADATOS DE CITACIÓN
     return response, retrieved_texts, citation_metadata, tokens_used
+# -------------------------------
 
 
-# MODIFICAMOS LAS FIRMAS DE LAS ENVOLTURAS
-def call_rag_chatgpt(query: str, k: int = 4) -> Tuple[str, List[str], List[CitationMetadata], int]:
-    """Función de envoltura para llamar al pipeline RAG con el proveedor OpenRouter (ChatGPT)."""
-    return rag_pipeline(query=query, provider="openrouter", k=k)
+# RUTAS DE FLASK
 
+@app.route("/", methods=["GET"])
+def index():
+    """Ruta para la página principal."""
+    
+    # Asumimos que retriever.collection_name existe o usamos un valor predeterminado
+    collection_name = getattr(retriever, 'collection_name', 'ufro_normativa') 
+    system_status = "Listo" # Se asume listo porque la inicialización global ya ocurrió.
 
-def call_rag_deepseek(query: str, k: int = 4) -> Tuple[str, List[str], List[CitationMetadata], int]:
-    """Función de envoltura para llamar al pipeline RAG con el proveedor DeepSeek."""
-    return rag_pipeline(query=query, provider="deepseek", k=k)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ejecuta el pipeline RAG de la UFRO.")
-    parser.add_argument("query", type=str, help="La pregunta del usuario a procesar.")
-    parser.add_argument(
-        "--provider",
-        type=str,
-        default="openrouter",
-        help="El proveedor LLM a usar ('openrouter' o 'deepseek').",
-    )
-    # Manejo de k
-    parser.add_argument(
-        "--k",
-        type=int,
-        default=4,
-        help="Número de fragmentos (chunks) a recuperar de la base de datos (top-k).",
+    return render_template(
+        "index.html",
+        system_status=system_status,
+        collection_name=collection_name
     )
 
-    args = parser.parse_args()
+@app.route("/api/query", methods=["POST"])
+def api_query():
+    """Ruta API para manejar la consulta RAG y devolver una respuesta JSON."""
+    data = request.json
+    query = data.get("query", "")
+    provider = data.get("provider", "openrouter")
+    k = data.get("k", 4)
 
-    print("--- 1. Inicializando componentes RAG ---")
+    if not query:
+        return jsonify({"error": "No se proporcionó la consulta."}), 400
+
+    try:
+        k_int = int(k)
+    except ValueError:
+        return jsonify({"error": "El valor de 'k' debe ser un número entero."}), 400
+
     start_time = time.time()
-
-    # ACTUALIZAMOS EL LLAMADO Y DESEMPAQUE DE LA TUPLA
+    
+    # Llama a la pipeline RAG duplicada en este mismo archivo
     final_response, retrieved_texts, citations, tokens = rag_pipeline(
-        query=args.query, provider=args.provider, k=args.k  # Se pasa el valor de 'k'
+        query=query, 
+        provider=provider, 
+        k=k_int
     )
-
+    
     end_time = time.time()
     latency_ms = (end_time - start_time) * 1000
+    
+    # Prepara el resultado para la respuesta JSON
+    result = {
+        "answer": final_response,
+        "citations": citations,
+        "metrics": {
+            "provider": provider.upper(),
+            "k": len(retrieved_texts),
+            "tokens_used": tokens,
+            "latency_ms": f"{latency_ms:.2f}"
+        }
+    }
+    
+    return jsonify(result)
 
-    print("\n--- ¡Proceso Completado! ---")
-    print("\nRespuesta Final:")
-    print(final_response)
-
-    # LÓGICA DE CITAS: Impresión de referencias en el formato requerido
-    if citations:
-        print("\n### Referencias:")
-        for citation in citations:
-            # Formato requerido: [Documento, p.xx] e ID/URL
-            print(f"  - [{citation['title']}, p.{citation['page']}] (URL: {citation['url']})")
-    else:
-        print("\n### Referencias: No se encontraron fuentes.")
-
-    # ACTUALIZAMOS LAS MÉTRICAS FINALES
-    print(f"\nModelo usado: {args.provider.upper()}")
-    print(f"Fragmentos recuperados (k): {len(retrieved_texts)}")
-    print(f"Tokens usados (estimado): {tokens}")
-    print(f"Latencia: {latency_ms:.2f} ms")
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente de Normativa UFRO - RAG</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Configuración RAG</h2>
+            
+            <div class="config-group">
+                <label for="llm-provider">Modelo LLM (Provider):</label>
+                <select id="llm-provider" class="config-input">
+                    <option value="openrouter" selected>OpenRouter (GPT-3.5)</option>
+                    <option value="deepseek">DeepSeek</option>
+                </select>
+                <small>Define el modelo de lenguaje que genera la respuesta.</small>
+            </div>
+
+            <div class="config-group">
+                <label for="k-value">Contextos a Recuperar (k):</label>
+                <input type="number" id="k-value" class="config-input" value="4" min="1" max="10">
+                <small>Cantidad de documentos o "chunks" a buscar en Qdrant.</small>
+            </div>
+
+            <div class="config-group system-status">
+                <label>Estado del Sistema:</label>
+                <p id="system-status-display" class="status-ready">{{ system_status }}</p>
+            </div>
+
+            <div class="config-group">
+                <label>Colección:</label>
+                <p class="collection-name">{{ collection_name }}</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <h1>Asistente de Normativa UFRO</h1>
+            
+            <div class="chat-area">
+                <div class="chat-message initial-message">
+                    Hola, soy tu asistente de Retrieval Augmented Generation (RAG). Pregúntame sobre la normativa de la UFRO.
+                </div>
+                <div id="response-container"></div>
+                
+                <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                    Cargando respuesta...
+                </div>
+            </div>
+
+            <div class="input-area">
+                <textarea id="user-query" placeholder="Escribe tu consulta aquí..." rows="1"></textarea>
+                <button id="send-button" title="Enviar consulta (Enter)">Enviar</button>
+            </div>
+
+            <div id="references-area" class="references-area" style="display: none;">
+                <h3>Referencias Citadas:</h3>
+                <ul id="citation-list"></ul>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        const sendButton = document.getElementById('send-button');
+        const userQueryInput = document.getElementById('user-query');
+        const responseContainer = document.getElementById('response-container');
+        const llmProviderSelect = document.getElementById('llm-provider');
+        const kValueInput = document.getElementById('k-value');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const referencesArea = document.getElementById('references-area');
+        const citationList = document.getElementById('citation-list');
+
+        async function sendQuery() {
+            const query = userQueryInput.value.trim();
+            if (!query) return;
+
+            appendMessage('user', query);
+            userQueryInput.value = '';
+            
+            sendButton.disabled = true;
+            loadingIndicator.style.display = 'block';
+            referencesArea.style.display = 'none';
+            citationList.innerHTML = ''; 
+
+            const provider = llmProviderSelect.value;
+            const k = kValueInput.value;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, provider, k })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    appendMessage('system-rag', data.answer);
+                    displayCitations(data.citations);
+                } else {
+                    appendMessage('system-error', `Error (${response.status}): ${data.error || 'No se pudo obtener una respuesta.'}`);
+                }
+
+            } catch (error) {
+                console.error('Error de red/servidor:', error);
+                appendMessage('system-error', 'Ocurrió un error de conexión con el servidor RAG.');
+            } finally {
+                sendButton.disabled = false;
+                loadingIndicator.style.display = 'none';
+                userQueryInput.style.height = 'auto';
+            }
+        }
+
+        function appendMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}`;
+            messageDiv.textContent = content;
+            responseContainer.appendChild(messageDiv);
+            const chatArea = document.querySelector('.chat-area');
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function displayCitations(citations) {
+            if (citations && citations.length > 0) {
+                referencesArea.style.display = 'block';
+                citations.forEach(citation => {
+                    const listItem = document.createElement('li');
+                    const urlLink = citation.url && citation.url !== '#' ? 
+                        `<a href="${citation.url}" target="_blank">URL</a>` : 'N/D';
+                        
+                    listItem.innerHTML = `[${citation.title}, p.${citation.page}] (${urlLink})`;
+                    citationList.appendChild(listItem);
+                });
+            }
+        }
+
+        sendButton.addEventListener('click', sendQuery);
+        userQueryInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); 
+                sendQuery();
+            }
+        });
+        
+        userQueryInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+    </script>
+</body>
+</html>
