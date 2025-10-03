@@ -83,4 +83,38 @@ markdown ### Referencias: [Título del Documento, p.XX] (URL: URL_VÁLIDA)
 | Reglamento Pregrado | Reglamento de Régimen de Estudios de Pregrado     | [https://pregrado.ufro.cl/...pdf](https://pregrado.ufro.cl/...pdf)                                 | Versión 2023 |
 | Magíster 2024       | Nuevo Reglamento General de Programas de Magíster | [https://magistercienciassociales.ufro.cl/...pdf](https://magistercienciassociales.ufro.cl/...pdf) | Versión 2024 |
 
+---### 4.3 Ejecución Local de la Aplicación Web (Flask)
+
+Si deseas usar la interfaz web (frontend) en lugar del modo CLI, debes iniciar el servidor de Flask.
+
 ---
+
+#### 📌 Prerrequisitos
+
+- Haber completado la **Ingesta de Documentos** (Sección 3).  
+- Tener el servidor **Qdrant** corriendo localmente en:  
+  `http://localhost:6333`  
+- Asegurarte de que todas las dependencias estén instaladas:  
+
+```bash
+pip install -r requirements.txt
+🚀 Pasos para iniciar la App
+Abre tu terminal en el directorio raíz del proyecto.
+
+Ejecuta el script principal de Flask:
+
+bash
+Copiar código
+python app.py
+Una vez que veas el mensaje:
+
+nginx
+Copiar código
+Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+Abre tu navegador y accede a la aplicación en:
+👉 http://localhost:5000
+
+bash
+Copiar código
+
+¿Quieres que lo deje en el mismo estilo que las secciones anteriores de tu README (con numeración, blo
