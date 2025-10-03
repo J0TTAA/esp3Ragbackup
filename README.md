@@ -104,16 +104,15 @@ Abre tu terminal en el directorio raíz del proyecto.
 Ejecuta el script principal de Flask:
 
 bash
-Copiar código
+
 python app.py
 Una vez que veas el mensaje:
 
 nginx
-Copiar código
+
 Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 Abre tu navegador y accede a la aplicación en:
 👉 http://localhost:5000
 
-bash
-Copiar código
+
 
