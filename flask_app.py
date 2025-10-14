@@ -149,4 +149,5 @@ def api_query():
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Configuración para Docker - escuchar en todas las interfaces
+    app.run(host='0.0.0.0', port=5000, debug=False)
