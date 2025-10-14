@@ -29,5 +29,5 @@ COPY . /app
 # Expone el puerto de Flask
 EXPOSE 5000
 
-# Comando para correr la aplicación Flask
+# Comando para correr la aplicación Flask en producción
 CMD ["python", "flask_app.py"]
